@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"errors"
 	"flag"
+	"strings"
 
 	"github.com/gorilla/sessions"
 	"golang.org/x/oauth2"
@@ -209,12 +210,10 @@ func handleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	extension, err := fetchExtension(token, googleUser.Email)
+	extension, roles, err := fetchExtension(token, googleUser.Email)
 	if err != nil {
 	    log.Printf("Could not fetch custom attributes: %v", err)
 	}
-	// e.g. attrs["department"], attrs["employeeId"]
-	log.Printf("Extension: %+v", extension)
 
 	// Save user to session
 	userSession, _ := store.Get(r, "user-session")
@@ -224,6 +223,7 @@ func handleCallback(w http.ResponseWriter, r *http.Request) {
 	userSession.Values["user_picture"] = googleUser.Picture
 	userSession.Values["logged_in"] = true
 	userSession.Values["extension"] = extension
+	userSession.Values["roles"] = roles
 	userSession.Save(r, w)
 
 	log.Printf("✅ User logged in: %s (%s)", googleUser.Name, googleUser.Email)
@@ -241,6 +241,11 @@ func handleDashboard(w http.ResponseWriter, r *http.Request) {
 	user := getSessionUser(r)
 	queues, _ := myQueues(user.Interface)
 	followme, _ := getFollowMeNumber(user.Extension)
+
+	if ! user.HasRole("agent") {
+		http.Redirect(w, r, "/profile", http.StatusFound)
+		return
+	}
 
 	renderTemplate(w, "dashboard.html", map[string]any{
 		"User": user,
@@ -282,6 +287,11 @@ func queueStatus() ([]*ami.QueueParamsEvent, error) {
 
 func handleQueueStatus(w http.ResponseWriter, r *http.Request) {
 	user := getSessionUser(r)
+
+	if ! user.HasRole("admin") {
+		http.Redirect(w, r, "/profile", http.StatusFound)
+		return
+	}
 
 	qs, err := queueStatus()
 	if err != nil {
@@ -365,6 +375,11 @@ func handleJoinQueue(w http.ResponseWriter, r *http.Request) {
 	queue := r.PathValue("queue")
 	user := getSessionUser(r)
 
+	if ! user.HasRole("agent") {
+		http.Redirect(w, r, "/profile", http.StatusFound)
+		return
+	}
+
 	_, err := joinQueue(queue, user.Interface, user.Name, user.StateInterface)
 	if err != nil {
 		log.Printf("%v", err)
@@ -400,6 +415,11 @@ func leaveQueue(queue, iface string) (map[string]string, error) {
 func handleLeaveQueue(w http.ResponseWriter, r *http.Request) {
 	user := getSessionUser(r)
 	queue := r.PathValue("queue")
+
+	if ! user.HasRole("agent") {
+		http.Redirect(w, r, "/profile", http.StatusFound)
+		return
+	}
 
 	_, err := leaveQueue(queue, user.Interface)
 	if err != nil {
@@ -466,6 +486,11 @@ func myQueues(iface string) ([]memberStatus, error) {
 func handleMyQueues(w http.ResponseWriter, r *http.Request) {
 	user := getSessionUser(r)
 
+	if ! user.HasRole("agent") {
+		http.Redirect(w, r, "/profile", http.StatusFound)
+		return
+	}
+
 	qm, err := myQueues(user.Interface)
 	if err != nil {
 		log.Printf("%v", err)
@@ -514,6 +539,11 @@ func handlePauseMember(w http.ResponseWriter, r *http.Request) {
 		queue = ""
 	}
 
+	if ! user.HasRole("agent") {
+		http.Redirect(w, r, "/profile", http.StatusFound)
+		return
+	}
+
 	err := pauseMember(queue, user.Interface, true)
 	if err != nil {
 		log.Printf("%v", err)
@@ -523,6 +553,12 @@ func handlePauseMember(w http.ResponseWriter, r *http.Request) {
 
 func handleResumeMember(w http.ResponseWriter, r *http.Request) {
 	user := getSessionUser(r)
+
+	if ! user.HasRole("agent") {
+		http.Redirect(w, r, "/profile", http.StatusFound)
+		return
+	}
+
 	queue := r.PathValue("queue")
 	if queue == "all" {
 		queue = ""
@@ -586,6 +622,13 @@ func dbGet(family, key string) (string, error) {
 }
 
 func handleDBGet(w http.ResponseWriter, r *http.Request) {
+	user := getSessionUser(r)
+
+	if ! user.HasRole("agent") {
+		http.Redirect(w, r, "/profile", http.StatusFound)
+		return
+	}
+
 	res, err := dbGet("AMPUSER", "5101/followme/grplist")
 	if err != nil {
 		log.Printf("Error: %v", err)
@@ -638,6 +681,13 @@ func dbPut(family, key, value string) (error) {
 
 func handleUpdateNumber(w http.ResponseWriter, r *http.Request) {
 	user := getSessionUser(r)
+
+	if ! user.HasRole("agent") {
+		http.Redirect(w, r, "/profile", http.StatusFound)
+		return
+	}
+
+
 	newnumber := r.PathValue("newnumber")
 	_, err := strconv.Atoi(newnumber)
 	if err != nil || newnumber == ""  || len(newnumber) > 30 {
@@ -669,6 +719,16 @@ type SessionUser struct {
 	Extension      string
 	Interface      string
 	StateInterface string
+	Roles          []string
+}
+
+func (self *SessionUser) HasRole(rolequery string) bool {
+	for _, role := range self.Roles {
+		if role == rolequery {
+			return true
+		}
+	}
+	return false
 }
 
 func getSessionUser(r *http.Request) *SessionUser {
@@ -688,6 +748,7 @@ func getSessionUser(r *http.Request) *SessionUser {
 		Extension:      session.Values["extension"].(string),
 		Interface:      "Local/" + session.Values["extension"].(string) + "@from-queue/n",
 		StateInterface: "hint:" + session.Values["extension"].(string) + "@ext-local",
+		Roles:          session.Values["roles"].([]string),
 	}
 }
 
@@ -731,7 +792,7 @@ func getEnv(key, fallback string) string {
 // Suppress unused import warning when building without fmt usage
 var _ = fmt.Sprintf
 
-func fetchExtension(token *oauth2.Token, userEmail string) (string, error) {
+func fetchExtension(token *oauth2.Token, userEmail string) (string, []string, error) {
     client := oauthConfig.Client(context.Background(), token)
 
     // Replace "Employee" with your schema name
@@ -742,7 +803,7 @@ func fetchExtension(token *oauth2.Token, userEmail string) (string, error) {
 
     resp, err := client.Get(url)
     if err != nil {
-        return "", err
+        return "", []string{}, err
     }
     defer resp.Body.Close()
 
@@ -755,5 +816,7 @@ func fetchExtension(token *oauth2.Token, userEmail string) (string, error) {
     schemas, _ := result["customSchemas"].(map[string]any)
     samana_phone, _ := schemas["Samana_Phone"].(map[string]any)
     extension, _ := samana_phone["Extension"].(string)
-    return extension, nil
+    rolestr, _ := samana_phone["Role"].(string)
+    roles := strings.Split(rolestr, ",")
+    return extension, roles, nil
 }

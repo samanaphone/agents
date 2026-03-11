@@ -34,15 +34,32 @@
     .tag { display: inline-block; background: #ebf8ff; color: #2b6cb0;
            font-size: 12px; font-weight: 600; padding: 4px 10px;
            border-radius: 20px; margin-bottom: 20px; letter-spacing: 0.5px; }
+    .access-notice { display: flex; align-items: flex-start; gap: 12px;
+          background-color: #fed7d7; border: 1.5px solid #fc8181; border-radius:
+          8px; padding: 14px 18px; max-width: 640px; margin: 0 auto;}
+
+    .access-notice-icon {font-size: 18px;line-height: 1.5;flex-shrink: 0; }
+
+    .access-notice p { font-size: 13px; color: #9b2c2c; line-height: 1.6; margin: 0; }
+
+    .access-notice strong { font-weight: 700; color: #742a2a; }
   </style>
 </head>
 <body>
   <div class="card">
     <div class="logo">🔐</div>
     <span class="tag">GO + GOOGLE OAUTH2</span>
-    <h1>Secure Authentication</h1>
+    <h1>Samana Help Desk Phone System</h1>
     <p>Sign in with your Google account to access the protected dashboard.</p>
 
+    <div class="access-notice">
+      <span class="access-notice-icon">🔒</span>
+      <p>
+        This site is private and restricted exclusively to authorized members of
+        <strong>Samana Group</strong>. Unauthorized access is strictly prohibited.
+        If you believe you should have access, please contact your system administrator.
+      </p>
+    </div>
     {{if .User}}
       <p>Welcome back, <strong>{{.User.Name}}</strong>!</p>
       <div class="already-logged">

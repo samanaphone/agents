@@ -1,3 +1,5 @@
 .env
 nginx
 .DS_Store
+*.tgz
+build/
