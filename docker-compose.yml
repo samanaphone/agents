@@ -1,0 +1,17 @@
+services:
+  dev:
+    build:
+      context: .
+    volumes:
+      - .:/go/src
+    #stdin_open: true
+    #tty: true
+    command: [ "make", "dist" ]
+    ports:
+      - "8088:8088"
+  #lb:
+  #  image: nginx:latest
+  #  ports:
+  #    - "443:443"
+  #  volumes:
+  #    - ./nginx/:/etc/nginx

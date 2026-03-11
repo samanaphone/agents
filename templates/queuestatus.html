@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <nav>
+    <div class="nav-brand">🔐 Samana Help Desk Phone System</div>
+    <div class="nav-links">
+      <a href="/dashboard" class="nav-link">Dashboard</a>
+      <a href="/profile" class="nav-link">Profile</a>
+      <a href="/logout" class="nav-link logout">Sign out</a>
+    </div>
+    <div class="nav-user">
+      <img src="{{.User.Picture}}" alt="{{.User.Name}}" referrerpolicy="no-referrer"/>
+      <span>{{.User.Name}}</span>
+    </div>
+  </nav>
+
+  <main>
+    <div class="welcome">
+      <h1>Welcome back, {{.User.Name}}! 👋</h1>
+    </div>
+
+    <div class="section">
+      <h2>Queues</h2>
+      {{ range $qname, $queue := .Queues }}
+      <table class="queue-table">
+        <thead>
+          <tr><th colspan="7" style="text-align: center;">{{ $qname }}</th></tr>
+          <tr>
+            <th>Active Agents</th>
+            <th>Calls</th>
+            <th>Completed</th>
+            <th>Abandoned</th>
+            <th>Holdtime</th>
+            <th>Talk Time</th>
+            <th>Service Level</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Queue row -->
+          <tr class="queue-row">
+            {{ if lt .CountActiveMembers 1 }}
+            <td class="active-agent-critical">
+            {{ else }}
+            <td class="active-agent-ok">
+            {{ end }}
+              {{ .CountActiveMembers }}
+            </td>
+            <td>{{ .Calls }}</td>
+            <td>{{ .Completed }}</td>
+            <td>{{ .Abandoned }}</td>
+            <td>{{ .Holdtime }}</td>
+            <td>{{ .TalkTime }}</td>
+            <td>{{ .ServiceLevel }}</td>
+          </tr>
+          <!-- Members row (full width, spans all columns) -->
+          <tr class="members-row">
+            <td colspan="7">
+              <table class="member-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Calls Taken</th>
+                    <th>Last Call</th>
+                    <th>Status</th>
+                    <th>Paused</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><th colspan="5" class="active-agent">Active</th></tr>
+                  {{ range .ActiveMembers }}
+                  <tr>
+                    <td>{{ .Name }}</td>
+                    <td>{{ .CallsTaken }}</td>
+                    <td>{{ .LastCall }}</td>
+                    <td><span class="status-{{ .Status }}">{{ .Status }}</span></td>
+                    <td>
+                      {{ if .Paused }}
+                      <span class="paused-yes">Paused</span>
+                      {{ else }}
+                      <span class="paused-no">—</span>
+                      {{ end }}
+                    </td>
+                  </tr>
+                  {{ end }}
+                </tbody>
+              </table>
+            </td>
+          </tr>
+          <tr class="members-row">
+            <td colspan="7">
+              <table class="member-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Calls Taken</th>
+                    <th>Last Call</th>
+                    <th>Status</th>
+                    <th>Paused</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><th colspan="5" class="inactive-agent">Inactive</th></tr>
+                  {{ range .InactiveMembers }}
+                  <tr>
+                    <td>{{ .Name }}</td>
+                    <td>{{ .CallsTaken }}</td>
+                    <td>{{ .LastCall }}</td>
+                    <td><span class="status-{{ .Status }}">{{ .Status }}</span></td>
+                    <td>
+                      {{ if .Paused }}
+                      <span class="paused-yes">Paused</span>
+                      {{ else }}
+                      <span class="paused-no">—</span>
+                      {{ end }}
+                    </td>
+                  </tr>
+                  {{ end }}
+                </tbody>
+              </table>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      {{ end }}
+    </div>
+
+
+    <div class="section">
+      <h2>Session Info <span class="badge">Active</span></h2>
+      <p style="color:#4a5568; line-height:1.7;">
+        <strong>Email:</strong> {{.User.Email}}<br/>
+        <strong>Extension:</strong> {{.User.Extension}}<br/>
+      </p>
+    </div>
+
+  </main>
+</body>
+</html>

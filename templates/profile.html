@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Profile</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+           background: #f0f4f8; min-height: 100vh; }
+    nav { background: white; padding: 0 32px; height: 64px;
+          display: flex; align-items: center; justify-content: space-between;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .nav-brand { font-weight: 700; font-size: 18px; color: #2d3748; }
+    .nav-links { display: flex; gap: 8px; }
+    .nav-link { color: #4a5568; text-decoration: none; font-size: 14px;
+                padding: 8px 14px; border-radius: 6px; transition: background 0.15s; }
+    .nav-link:hover { background: #edf2f7; }
+    .nav-link.logout { color: #e53e3e; }
+    main { max-width: 540px; margin: 48px auto; padding: 0 24px; }
+    .card { background: white; border-radius: 16px; padding: 40px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08); text-align: center; }
+    .avatar { width: 96px; height: 96px; border-radius: 50%;
+              border: 4px solid #667eea; margin: 0 auto 20px; display: block; }
+    h2 { font-size: 22px; color: #2d3748; margin-bottom: 6px; }
+    .email { color: #718096; font-size: 15px; margin-bottom: 28px; }
+    .info-row { display: flex; justify-content: space-between; align-items: center;
+                padding: 14px 0; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { color: #718096; font-weight: 500; }
+    .info-value { color: #2d3748; font-weight: 600; max-width: 260px;
+                  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .provider-badge { background: #ebf8ff; color: #2b6cb0; padding: 4px 12px;
+                      border-radius: 20px; font-size: 12px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-brand">🔐 SecureApp</div>
+    <div class="nav-links">
+      <a href="/dashboard" class="nav-link">Dashboard</a>
+      <a href="/profile" class="nav-link">Profile</a>
+      <a href="/logout" class="nav-link logout">Sign out</a>
+    </div>
+  </nav>
+
+  <main>
+    <div class="card">
+      <img src="{{.User.Picture}}" alt="{{.User.Name}}" class="avatar" referrerpolicy="no-referrer"/>
+      <h2>{{.User.Name}}</h2>
+      <p class="email">{{.User.Email}}</p>
+
+      <div class="info-row">
+        <span class="info-label">User ID</span>
+        <span class="info-value">{{.User.ID}}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Email</span>
+        <span class="info-value">{{.User.Email}}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Auth Provider</span>
+        <span class="provider-badge">Google</span>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

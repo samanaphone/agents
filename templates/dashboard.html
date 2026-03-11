@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <nav>
+    <div class="nav-brand">🔐 Samana Help Desk Phone System</div>
+    <div class="nav-links">
+      <a href="/queuestatus" class="nav-link">Queue Status</a>
+      <a href="/profile" class="nav-link">Profile</a>
+      <a href="/logout" class="nav-link logout">Sign out</a>
+    </div>
+    <div class="nav-user">
+      <img src="{{.User.Picture}}" alt="{{.User.Name}}" referrerpolicy="no-referrer"/>
+      <span>{{.User.Name}}</span>
+    </div>
+  </nav>
+
+  <main>
+    <div class="welcome">
+      <h1>Welcome back, {{.User.Name}}! 👋</h1>
+    </div>
+
+    <div class="section">
+      <h2>FollowMe Number</h2>
+      {{.FollowMe}}
+      <input type="text" class="input" id="newNumber" placeholder="<country code><area code><phone number> (only numbers)" />
+      <a href="#" class="button" id="updateButton">Update</a>
+    </div>
+
+
+    <div class="section">
+      <h2>
+        Queues
+        <a class="button" href="/pausemember/all">Pause All</a>
+        <a class="button" href="/resumemember/all">Resume All</a>
+      </h2>
+      <table class="queue-table">
+        <thead>
+          <tr>
+            <th>Queue</th>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Pause</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{ range .Queues }}
+          <tr>
+            <td><strong>{{ .Queue }}</strong></td>
+            <td><strong>{{ .Name }}</strong></td>
+            <td>
+              {{ if .Joined }}
+                <span class="joined">Joined</span>
+              {{ else }}
+                <span class="notjoined">Not Joined</span>
+              {{ end }}
+            </td>
+            <td>
+              {{ if .Joined }}
+                {{ if .Paused }}
+                  <span class="paused">Paused</span>
+                {{ end }}
+              {{ else }}
+                —
+              {{ end }}
+            </td>
+            <td>
+              {{ if .Joined }}
+                {{ if .Paused }}
+                  <a class="button" href="/resumemember/{{ .Queue }}">Resume</a>
+                {{ else }}
+                  <a class="button" href="/pausemember/{{ .Queue }}">Pause</a>
+                {{ end }}
+                {{ if .Dynamic }}
+                  <a class="button" href="/leavequeue/{{ .Queue }}">Leave</a>
+                {{ end }}
+              {{ else }}
+                <a class="button" href="/joinqueue/{{ .Queue }}">Join</a>
+              {{ end }}
+            </td>
+          </tr>
+          {{ end }}
+        </tbody>
+      </table>
+    </div>
+    <div class="section">
+      <h2>Session Info <span class="badge">Active</span></h2>
+      <p style="color:#4a5568; line-height:1.7;">
+        <strong>Email:</strong> {{.User.Email}}<br/>
+        <strong>Extension:</strong> {{.User.Extension}}<br/>
+      </p>
+    </div>
+
+  </main>
+  <script language="javascript">
+    document.getElementById("updateButton").addEventListener("click", function(e) {
+      e.preventDefault();
+      const value = document.getElementById("newNumber").value.trim();
+      if (value) {
+          window.location.href = "/updatenumber/" + encodeURIComponent(value);
+      }
+    });
+  </script>
+</body>
+</html>
