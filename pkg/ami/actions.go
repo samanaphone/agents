@@ -285,3 +285,18 @@ func (c *Client) DBPut(ctx context.Context, family, key, value string) (*Respons
 		"Val": value,
 	})
 }
+
+func (c *Client) DBGetTree(ctx context.Context, family, key string) (*Response, error) {
+	return c.Action(ctx, "DBGetTree", Params{
+		"Family": family,
+		"Key": key,
+	})
+}
+
+func (c *Client) DBDelTree(ctx context.Context, family, key string) (*Response, error) {
+	return c.Action(ctx, "DBDelTree", Params{
+		"Family": family,
+		"Key": key,
+	})
+}
+

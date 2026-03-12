@@ -21,14 +21,14 @@ dist: $(DIST_PACKAGES)
 
 sammagents-linux-aarch64-$(VERSION).tgz: build/main-linux-aarch64 $(TMPL_FILES) $(STATIC_FILES)
 	mkdir tempaarch64
-	cp -R static templates .env.example queues.json docker/* tempaarch64
+	cp -R static templates .env.example docker/* tempaarch64
 	cp $< tempaarch64/main
 	cd tempaarch64 && tar -cvzf ../$@ .
 	rm -Rf tempaarch64
 
 sammagents-linux-amd64-$(VERSION).tgz: build/main-linux-amd64 $(TMPL_FILES) $(STATIC_FILES)
 	mkdir tempamd64
-	cp -R static templates .env.example queues.json docker/* tempamd64
+	cp -R static templates .env.example docker/* tempamd64
 	cp $< tempamd64/main
 	cd tempamd64 && tar -cvzf ../$@ .
 	rm -Rf tempamd64

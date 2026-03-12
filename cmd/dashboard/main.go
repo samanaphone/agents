@@ -13,7 +13,6 @@ import (
 	"time"
 	"strconv"
 	"errors"
-	"flag"
 	"strings"
 
 	"github.com/gorilla/sessions"
@@ -43,8 +42,6 @@ var (
 )
 
 func init() {
-	flag.StringVar(&qFileName, "queues", "", "File containing the queue descriptions. Format of the file must be JSON.")
-
 	// Session store — use a strong random key in production
 	sessionKey := getEnv("SESSION_KEY", "super-secret-session-key-change-in-prod")
 	store = sessions.NewCookieStore([]byte(sessionKey))
@@ -63,7 +60,6 @@ func init() {
 		Scopes: []string{
 			"https://www.googleapis.com/auth/userinfo.email",
 			"https://www.googleapis.com/auth/userinfo.profile",
-			"https://www.googleapis.com/auth/admin.directory.user.readonly",
 		},
 		Endpoint: google.Endpoint,
 	}
@@ -95,23 +91,15 @@ func init() {
 }
 
 func main() {
-	flag.Parse()
 
-	if qFileName != "" {
-		file, err := os.Open(qFileName)
-		if err != nil {
-			log.Printf("Error: %+v", err)
-			return
-		}
-		dec := json.NewDecoder(file)
+	var err error
 
-		err = dec.Decode(&queueName)
-		if err != nil {
-			log.Printf("Error: %+v", err)
-			return
-		}
+	queueName, err = dbGetTree("Samana", "queue/name")
+	if err != nil {
+		log.Printf("Error: %v", err)
 	}
-	log.Printf("queues: %+v", queueName)
+	log.Printf("Queues: %+v", queueName)
+
 
 	mux := http.NewServeMux()
 
@@ -132,6 +120,9 @@ func main() {
 	mux.Handle("/resumemember/{queue}", requireAuth(http.HandlerFunc(handleResumeMember)))
 	mux.Handle("/dbget/{extension}", requireAuth(http.HandlerFunc(handleDBGet)))
 	mux.Handle("/updatenumber/{newnumber}", requireAuth(http.HandlerFunc(handleUpdateNumber)))
+	mux.Handle("/users", requireAuth(http.HandlerFunc(handleUsers)))
+	mux.Handle("/adduser/{email}/{extension}/{roles}", requireAuth(http.HandlerFunc(handleAddUser)))
+	mux.Handle("/deluser/{email}", requireAuth(http.HandlerFunc(handleDeleteUser)))
 
 	// Static files
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
@@ -210,7 +201,7 @@ func handleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	extension, roles, err := fetchExtension(token, googleUser.Email)
+	extension, roles, err := fetchExtension(googleUser.Email)
 	if err != nil {
 	    log.Printf("Could not fetch custom attributes: %v", err)
 	}
@@ -621,6 +612,70 @@ func dbGet(family, key string) (string, error) {
 	return "", errors.New("Unknown error")
 }
 
+func dbGetTree(family, key string) (map[string]string, error) {
+	client := ami.NewClient(amiConfig)
+	ctx := context.Background()
+
+	values := map[string]string{}
+	if err := client.Login(ctx); err != nil {
+		return values, errors.New("Unable to login: " + err.Error())
+	}
+
+	res, err := client.DBGetTree(ctx, family, key)
+	if err != nil {
+		return values, errors.New("Error getting db tree: " + err.Error())
+	}
+
+	if err := client.Logoff(ctx); err != nil {
+		return values, errors.New("Unable to logoff: " + err.Error())
+	}
+
+	if ! res.IsSuccess() {
+		msg, _ := res.Fields["message"]
+		return values, errors.New("Error getting db tree: " + msg)
+	}
+
+	for _, event := range res.Events {
+		eventType, _ := event["event"]
+		if eventType != "DBGetTreeResponse" {
+			continue
+		}
+		k := event["key"]
+		prefix := "/" + family + "/" + key + "/"
+		if len(k) > len(prefix) {
+			k = k[len(prefix):]
+		}
+		values[k] = event["val"]
+	}
+
+	return values, nil
+}
+
+func dbDelTree(family, key string) error {
+	client := ami.NewClient(amiConfig)
+	ctx := context.Background()
+
+	if err := client.Login(ctx); err != nil {
+		return errors.New("Unable to login: " + err.Error())
+	}
+
+	res, err := client.DBDelTree(ctx, family, key)
+	if err != nil {
+		return errors.New("Error removing db tree: " + err.Error())
+	}
+
+	if err := client.Logoff(ctx); err != nil {
+		return errors.New("Unable to logoff: " + err.Error())
+	}
+
+	if ! res.IsSuccess() {
+		msg, _ := res.Fields["message"]
+		return errors.New("Error removing db tree: " + msg)
+	}
+
+	return nil
+}
+
 func handleDBGet(w http.ResponseWriter, r *http.Request) {
 	user := getSessionUser(r)
 
@@ -696,6 +751,100 @@ func handleUpdateNumber(w http.ResponseWriter, r *http.Request) {
 		putFollowMeNumber(user.Extension, newnumber)
 	}
 	http.Redirect(w, r, "/dashboard", http.StatusFound)
+}
+
+type user struct {
+	Extension string
+	Roles string
+}
+
+func listUsers() (map[string]*user, error) {
+	users, err := dbGetTree("Samana", "users")
+	out := map[string]*user{}
+
+	if err != nil {
+		return out, err
+	}
+
+	for k, v := range users {
+		username, attr, _ := strings.Cut(k, "/")
+		u, found := out[username]
+		if ! found {
+			u = &user{}
+			out[username] = u
+		}
+		switch attr {
+		case "role":
+			u.Roles = v
+		case "extension":
+			u.Extension = v
+		}
+	}
+	return out, nil
+}
+
+func handleUsers(w http.ResponseWriter, r *http.Request) {
+	user := getSessionUser(r)
+
+	if ! user.HasRole("admin") {
+		http.Redirect(w, r, "/profile", http.StatusFound)
+		return
+	}
+	users, err := listUsers()
+	if err != nil {
+		log.Printf("Error: '%v'", err)
+		http.Redirect(w, r, "/profile", http.StatusFound)
+		return
+	}
+
+	data := map[string]any{
+		"User": user,
+		"Users": users,
+	}
+	renderTemplate(w, "users.html", data)
+}
+
+func handleAddUser(w http.ResponseWriter, r *http.Request) {
+	user := getSessionUser(r)
+
+	if ! user.HasRole("admin") {
+		http.Redirect(w, r, "/profile", http.StatusFound)
+		return
+	}
+
+	email := r.PathValue("email")
+	extension := r.PathValue("extension")
+	roles := r.PathValue("roles")
+
+	err := dbPut("Samana", "users/" + email + "/extension", extension)
+	if err != nil {
+		log.Printf("Error: %+v", err)
+	}
+	err = dbPut("Samana", "users/" + email + "/role", roles)
+	if err != nil {
+		log.Printf("Error: %+v", err)
+	}
+
+	http.Redirect(w, r, "/users", http.StatusFound)
+}
+
+func handleDeleteUser(w http.ResponseWriter, r *http.Request) {
+	user := getSessionUser(r)
+
+	if ! user.HasRole("admin") {
+		http.Redirect(w, r, "/profile", http.StatusFound)
+		return
+	}
+
+	email := r.PathValue("email")
+
+
+	err := dbDelTree("Samana", "users/" + email)
+	if err != nil {
+		log.Printf("Error: %+v", err)
+	}
+
+	http.Redirect(w, r, "/users", http.StatusFound)
 }
 // ── Middleware ─────────────────────────────────────────────────────────────────
 
@@ -792,31 +941,17 @@ func getEnv(key, fallback string) string {
 // Suppress unused import warning when building without fmt usage
 var _ = fmt.Sprintf
 
-func fetchExtension(token *oauth2.Token, userEmail string) (string, []string, error) {
-    client := oauthConfig.Client(context.Background(), token)
+func fetchExtension(userEmail string) (string, []string, error) {
+	userdata, err := dbGetTree("Samana", "users/" + userEmail)
+	if err != nil {
+		return "", []string{}, err
+	}
 
-    // Replace "Employee" with your schema name
-    url := fmt.Sprintf(
-        "https://admin.googleapis.com/admin/directory/v1/users/%s?projection=full",
-        userEmail,
-    )
+	log.Printf("ExtensionData: %+v", userdata)
 
-    resp, err := client.Get(url)
-    if err != nil {
-        return "", []string{}, err
-    }
-    defer resp.Body.Close()
-
-    var result map[string]any
-    json.NewDecoder(resp.Body).Decode(&result)
-
-    fmt.Printf("data: %+v\n", result)
-
-    // Custom attrs live under "customSchemas"
-    schemas, _ := result["customSchemas"].(map[string]any)
-    samana_phone, _ := schemas["Samana_Phone"].(map[string]any)
-    extension, _ := samana_phone["Extension"].(string)
-    rolestr, _ := samana_phone["Role"].(string)
+	extension, _ := userdata["extension"]
+	rolestr, _ := userdata["role"]
     roles := strings.Split(rolestr, ",")
+
     return extension, roles, nil
 }
