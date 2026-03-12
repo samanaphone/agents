@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <nav>
+    <div class="nav-brand">🔐 Samana Help Desk Phone System</div>
+    <div class="nav-links">
+      <a href="/dashboard" class="nav-link">Dashboard</a>
+      <a href="/queuestatus" class="nav-link">Queue Status</a>
+      <a href="/profile" class="nav-link">Profile</a>
+      <a href="/logout" class="nav-link logout">Sign out</a>
+    </div>
+    <div class="nav-user">
+      <img src="{{.User.Picture}}" alt="{{.User.Name}}" referrerpolicy="no-referrer"/>
+      <span>{{.User.Name}}</span>
+    </div>
+  </nav>
+
+  <main>
+    <div class="section">
+      <h2>Users</h2>
+      <table class="queue-table">
+        <thead>
+          <tr>
+            <th>User Email</th>
+            <th>Extension</th>
+            <th>Roles</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{range $key, $value := .Users}}
+          <tr class="queue-row">
+            <td>{{$key}}</td>
+            <td>{{$value.Extension}}</td>
+            <td>{{$value.Roles}}</td>
+            <td><a class="button" href="/deluser/{{$key}}">Delete</a></td>
+          </tr>
+          {{end}}
+          <tr class="queue-row">
+            <td><input type="text" class="input" id="newEmail" placeholder="user@domain.com"/></td>
+            <td><input type="text" class="input" id="newExtension" placeholder="####"/></td>
+            <td><input type="text" class="input" id="newRoles" placeholder="role1,role2..."/></td>
+            <td><a href="#" class="button" id="adduserButton">Add</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="section">
+      <h2>Session Info <span class="badge">Active</span></h2>
+      <p style="color:#4a5568; line-height:1.7;">
+        <strong>Email:</strong> {{.User.Email}}<br/>
+        <strong>Extension:</strong> {{.User.Extension}}<br/>
+      </p>
+    </div>
+
+  </main>
+  <script language="javascript">
+    document.getElementById("adduserButton").addEventListener("click", function(e) {
+      e.preventDefault();
+      const newEmail = document.getElementById("newEmail").value.trim();
+      const newExtension = document.getElementById("newExtension").value.trim();
+      const newRoles = document.getElementById("newRoles").value.trim();
+      if (newEmail && newExtension && newRoles) {
+          window.location.href = "/adduser/" + encodeURIComponent(newEmail) + "/" + 
+            encodeURIComponent(newExtension) + "/" + encodeURIComponent(newRoles);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -10,7 +10,12 @@
   <nav>
     <div class="nav-brand">🔐 Samana Help Desk Phone System</div>
     <div class="nav-links">
-      <a href="/queuestatus" class="nav-link">Queue Status</a>
+      {{range .User.Roles}}
+        {{if eq . "admin"}}
+          <a href="/queuestatus" class="nav-link">Queue Status</a>
+          <a href="/users" class="nav-link">Users</a>
+        {{end}}
+      {{end}}
       <a href="/profile" class="nav-link">Profile</a>
       <a href="/logout" class="nav-link logout">Sign out</a>
     </div>
@@ -21,10 +26,6 @@
   </nav>
 
   <main>
-    <div class="welcome">
-      <h1>Welcome back, {{.User.Name}}! 👋</h1>
-    </div>
-
     <div class="section">
       <h2>FollowMe Number</h2>
       {{.FollowMe}}

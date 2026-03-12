@@ -2,7 +2,6 @@ services:
   agents:
     build:
       context: .
-    command: [ "-queues", "queues.json" ]
     ports:
       - "8088:8088"
     volumes:

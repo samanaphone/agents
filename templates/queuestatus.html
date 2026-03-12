@@ -11,6 +11,7 @@
     <div class="nav-brand">🔐 Samana Help Desk Phone System</div>
     <div class="nav-links">
       <a href="/dashboard" class="nav-link">Dashboard</a>
+      <a href="/users" class="nav-link">Users</a>
       <a href="/profile" class="nav-link">Profile</a>
       <a href="/logout" class="nav-link logout">Sign out</a>
     </div>
@@ -21,10 +22,6 @@
   </nav>
 
   <main>
-    <div class="welcome">
-      <h1>Welcome back, {{.User.Name}}! 👋</h1>
-    </div>
-
     <div class="section">
       <h2>Queues</h2>
       {{ range $qname, $queue := .Queues }}
